@@ -26,6 +26,9 @@ static const struct modversion_info ____versions[]
 __used
 __attribute__((section("__versions"))) = {
 	{ 0xb0826d43, "module_layout" },
+	{ 0x702fc0f0, "misc_deregister" },
+	{ 0xefd6cf06, "__aeabi_unwind_cpp_pr0" },
+	{ 0xb0beb5e8, "misc_register" },
 	{ 0x2e5810c6, "__aeabi_unwind_cpp_pr1" },
 	{ 0xc5850110, "printk" },
 	{ 0xb1ad28e0, "__gnu_mcount_nc" },

@@ -9,18 +9,38 @@
 // Morsecode driver:
 #include <linux/module.h>
 #include <linux/miscdevice.h>
+#include <linux/fs.h>
 
 #define MY_DEVICE_FILE "morse-code"
 
-static int morsecode_open(struct inode *inode, struct file *file){}
-static int morsecode_close(struct inode *inode, struct file *file){}
-static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff *ppos){}
+/***************************************
+ * Callback functions
+ **************************************/
 
+//static int morsecode_open(struct inode *inode, struct file *file);
+//static int morsecode_close(struct inode *inode, struct file *file);
+static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t *ppos) 
+{
+	printk(KERN_INFO "morsecode: In morsecode_read(): buffer size %d, f_pos %d\n",
+		(int) count, (int) *ppos);
+	return 0;
+}
+static ssize_t morsecode_write(struct file *file, const char *buff, size_t count, loff_t *ppos)
+{
+	printk(KERN_INFO "morsecode: In morsecode_write(): ");
+
+	return 0;
+
+}
+
+
+/****************************************
+ * Misc support
+ ***************************************/
 struct file_operations morsecode_fops = {
 	.owner	= THIS_MODULE,
-	.open	= morsecode_open,
-	.release = morsecode_close,
-	.read	= morsecode_read
+	.read	= morsecode_read,
+	.write	= morsecode_write
 };
 
 static struct miscdevice morsecode_miscdevice = {
@@ -30,6 +50,10 @@ static struct miscdevice morsecode_miscdevice = {
 };
 
 
+
+/***************************************
+ * Driver initialization and exit:
+ ***************************************/
 static int __init morsecode_init(void)
 {
 	int returnValue;
