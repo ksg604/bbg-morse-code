@@ -10,8 +10,122 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
+#include <linux/delay.h>
+#include <linux/leds.h>
+#include <linux/kfifo.h>
+#include <linux/uaccess.h>
 
 #define MY_DEVICE_FILE "morse-code"
+
+#define DOT_TIME 200
+#define DASH_TIME 600
+#define WORD_BREAK_TIME 1400
+
+/***************************************
+ * FIFO SUPPORT
+ **************************************/
+//#define FIFO_SIZE 1024	// Must be a power of 2.
+//static DECLARE_KFIFO(morse_fifo, char, FIFO_SIZE);
+
+//TAKEN FROM SUGGESTED MORSE CODE ENCODINGS
+
+// Morse Code Encodings (from http://en.wikipedia.org/wiki/Morse_code)
+//   Encoding created by Brian Fraser. Released under GPL.
+//
+// Encoding description:
+// - msb to be output first, followed by 2nd msb... (left to right)
+// - each bit gets one "dot" time.
+// - "dashes" are encoded here as being 3 times as long as "dots". Therefore
+//   a single dash will be the bits: 111.
+// - ignore trailing 0's (once last 1 output, rest of 0's ignored).
+// - Space between dashes and dots is one dot time, so is therefore encoded
+//   as a 0 bit between two 1 bits.
+//
+// Example:
+//   R = dot   dash   dot       -- Morse code
+//     =  1  0 111  0  1        -- 1=LED on, 0=LED off
+//     =  1011 101              -- Written together in groups of 4 bits.
+//     =  1011 1010 0000 0000   -- Pad with 0's on right to make 16 bits long.
+//     =  B    A    0    0      -- Convert to hex digits
+//     = 0xBA00                 -- Full hex value (see value in table below)
+//
+// Between characters, must have 3-dot times (total) of off (0's) (not encoded here)
+// Between words, must have 7-dot times (total) of off (0's) (not encoded here).
+//
+static unsigned short morsecode_codes[] = {
+		0xB800,	// A 1011 1
+		0xEA80,	// B 1110 1010 1
+		0xEBA0,	// C 1110 1011 101
+		0xEA00,	// D 1110 101
+		0x8000,	// E 1
+		0xAE80,	// F 1010 1110 1
+		0xEE80,	// G 1110 1110 1
+		0xAA00,	// H 1010 101
+		0xA000,	// I 101
+		0xBBB8,	// J 1011 1011 1011 1
+		0xEB80,	// K 1110 1011 1
+		0xBA80,	// L 1011 1010 1
+		0xEE00,	// M 1110 111
+		0xE800,	// N 1110 1
+		0xEEE0,	// O 1110 1110 111
+		0xBBA0,	// P 1011 1011 101
+		0xEEB8,	// Q 1110 1110 1011 1
+		0xBA00,	// R 1011 101
+		0xA800,	// S 1010 1
+		0xE000,	// T 111
+		0xAE00,	// U 1010 111
+		0xAB80,	// V 1010 1011 1
+		0xBB80,	// W 1011 1011 1
+		0xEAE0,	// X 1110 1010 111
+		0xEBB8,	// Y 1110 1011 1011 1
+		0xEEA0	// Z 1110 1110 101
+};
+
+/***************************************
+ * Parameter
+ **************************************/
+/*#define DEFAULT_FAV_NUM       42
+static int myfavnumber = DEFAULT_FAV_NUM;
+
+// Declare the variable as a parameter.
+//   S_IRUGO makes it's /sys/module node readable.
+//   # cat /sys/module/demo_paramdrv/parameters/myfavnumber
+// Loading:
+//   # modinfo demo_paramdrv.ko
+//   # insmod demo_paramdrv.ko myfavnumber=932
+module_param(myfavnumber, int, S_IRUGO);
+MODULE_PARM_DESC(myfavnumber, " My favourite number!");
+*/
+
+
+
+//module_param(dot_time, int, S_IRUGO);
+//MODULE_PARM_DESC(dot_time, "dot time for morse code");
+/***************************************
+ * LED Trigger
+ **************************************/
+DEFINE_LED_TRIGGER(my_trigger);
+
+static void morse_led_blink_on(void) {
+	led_trigger_event(my_trigger, LED_FULL);
+}
+
+static void morse_led_off(void) 
+{
+	led_trigger_event(my_trigger, LED_OFF);
+}
+
+static void led_register(void)
+{
+	// Setup the trigger's name:
+	led_trigger_register_simple("morse-code", &my_trigger);
+}
+
+static void led_unregister(void)
+{
+	// Cleanup
+	led_trigger_unregister_simple(my_trigger);
+}
 
 /***************************************
  * Callback functions
@@ -23,14 +137,125 @@ static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t
 {
 	printk(KERN_INFO "morsecode: In morsecode_read(): buffer size %d, f_pos %d\n",
 		(int) count, (int) *ppos);
+	
 	return 0;
 }
+
 static ssize_t morsecode_write(struct file *file, const char *buff, size_t count, loff_t *ppos)
 {
+	int i, idx, codeEndIndex, numBits;
+	unsigned short code, bit;
+
 	printk(KERN_INFO "morsecode: In morsecode_write(): ");
 
-	return 0;
+	numBits = BITS_PER_BYTE * sizeof(code);
 
+	for (i = 0; i < count; i++) {
+		char ch;
+		code = 0U;
+
+		if (copy_from_user(&ch, &buff[i], sizeof(ch))) {
+			return -EFAULT;
+		}
+
+		if (ch == ' ') {
+			// Sleep for space between words
+			msleep(WORD_BREAK_TIME);
+		} else if (65 <= ch && ch <= 90) {
+			code = morsecode_codes[ch - 65];
+		} else if (97 <= ch && ch <= 122) {
+			code = morsecode_codes[ch - 97];
+		}
+
+		// blink if the code is not 0
+		if (code) {
+			// Find at what index the morse code ends
+			for (idx = 0; idx < numBits; idx++) {
+				bit = (code & ( 1 << idx )) >> idx;
+
+				if (bit) {
+					codeEndIndex = idx;
+					break;
+				}
+			}
+
+			// read the entire bit sequence
+			for (idx = numBits - 1; idx >= codeEndIndex; idx--) {
+				bit = (code & ( 1 << idx )) >> idx;
+
+				if (bit) {
+					morse_led_blink_on();
+				} else {
+					morse_led_off();
+				}
+				
+				msleep(DOT_TIME);
+			}
+
+			// turn led off then sleep for 3*dot time or dashtime.
+			morse_led_off();
+			msleep(DASH_TIME);
+		}
+	}
+
+
+	*ppos += count;
+	return count;
+
+
+	/*int i, code;
+	//char letter;
+	
+
+	//return 0;
+	
+	printk(KERN_INFO "morsecode: Flashing %d times for string.\n", count);
+
+	// instead of this needs to figure out flash character code and flash that out for every character
+	// Blink once per character (-1 to skip end null)
+	for (i = 0; i < count-1; i++) {
+		char ch;
+		
+		code = 0;
+
+		// Get the character from userspace
+		if (copy_from_user(&ch, &buff[i], sizeof(ch))) {
+			return -EFAULT;
+		}
+		printk(KERN_INFO "morsecode: next char is %c \n", ch);
+		// if character is space or alphabetical [a-z   A-Z]
+		if(ch == ' ' || (ch >= 97 && ch <= 122) || (ch >= 65 && ch <= 90)) {
+			if (ch == ' ') {
+				morse_led_off();
+				msleep(WORD_BREAK_TIME);
+			} else if (ch >= 97 && ch <= 122) {
+				code = morsecode_codes[ch - 97];
+			} else if (ch >= 65 && ch <= 90) {
+				code = morsecode_codes[ch - 65];
+			}
+
+			while (code != 0) {
+				printk(KERN_INFO "morsecode: current code is %d \n", code);
+				if ((code & 0xE000) == 0xE000){
+					//kfifo_put(&queue, '-');
+					//countl = 3;
+					printk(KERN_INFO "morsecode: doing a dash:\n");
+					morse_led_blink_dash();
+					code <<= 3;
+				} else if ((code & 0x8000) == 0x8000) {
+					//kfifo_put(&queue, '.');
+					printk(KERN_INFO "morsecode: doing a dot:\n");
+					morse_led_blink_dot();
+					code <<= 1;
+		   		} else {
+					msleep(DOT_TIME);
+				}
+			}
+		}	
+		//my_led_blink();
+		msleep(DASH_TIME);
+	}
+	return count;*/
 }
 
 
@@ -62,6 +287,9 @@ static int __init morsecode_init(void)
 	printk(KERN_INFO "---> Morse code driver init: file /dev/%s\n", MY_DEVICE_FILE);
 	printk(KERN_INFO "---> Morse code driver has been successfully initialized.\n");
 
+	led_register();
+
+
 	return returnValue;
 }
 
@@ -70,6 +298,8 @@ static void __exit morsecode_exit(void)
 	printk(KERN_INFO "<--- Morse code driver is now exiting.\n");
 	printk(KERN_INFO "<--- Morse code driver exit().\n");
 	misc_deregister(&morsecode_miscdevice);
+
+	led_unregister();
 }
 
 // Link init/exit functions into the kernel's code.
