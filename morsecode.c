@@ -21,11 +21,12 @@
 #define DASH_TIME 600
 #define WORD_BREAK_TIME 1400
 
+
 /***************************************
  * FIFO SUPPORT
  **************************************/
-//#define FIFO_SIZE 1024	// Must be a power of 2.
-//static DECLARE_KFIFO(morse_fifo, char, FIFO_SIZE);
+#define FIFO_SIZE 512	// Must be a power of 2.
+static DECLARE_KFIFO(morse_fifo, char, FIFO_SIZE);
 
 //TAKEN FROM SUGGESTED MORSE CODE ENCODINGS
 
@@ -135,16 +136,25 @@ static void led_unregister(void)
 //static int morsecode_close(struct inode *inode, struct file *file);
 static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t *ppos) 
 {
+
+	int num_bytes_read = 0;
+
+	/*
 	printk(KERN_INFO "morsecode: In morsecode_read(): buffer size %d, f_pos %d\n",
-		(int) count, (int) *ppos);
+		(int) count, (int) *ppos);*/
+
+
+	if ( kfifo_to_user(&morse_fifo, buff, count, &num_bytes_read) ) {
+		return -EFAULT;
+	}
 	
-	return 0;
+	return num_bytes_read;
 }
 
 static ssize_t morsecode_write(struct file *file, const char *buff, size_t count, loff_t *ppos)
 {
 	int i, idx, codeEndIndex, numBits;
-	unsigned short code, bit;
+	unsigned short code, bit, threeBits;
 
 	printk(KERN_INFO "morsecode: In morsecode_write(): ");
 
@@ -160,12 +170,17 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 
 		if (ch == ' ') {
 			// Sleep for space between words
+			kfifo_put(&morse_fifo, ' ');
+			kfifo_put(&morse_fifo, ' ');
+			kfifo_put(&morse_fifo, ' ');
 			msleep(WORD_BREAK_TIME);
 		} else if (65 <= ch && ch <= 90) {
 			code = morsecode_codes[ch - 65];
 		} else if (97 <= ch && ch <= 122) {
 			code = morsecode_codes[ch - 97];
 		}
+
+		printk(KERN_INFO "code: %d\n", code);
 
 		// blink if the code is not 0
 		if (code) {
@@ -181,23 +196,42 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 
 			// read the entire bit sequence
 			for (idx = numBits - 1; idx >= codeEndIndex; idx--) {
+				threeBits = (code & (7 << (idx-2))) >> (idx-2);
 				bit = (code & ( 1 << idx )) >> idx;
-
-				if (bit) {
+	
+				if (threeBits == 7) {
 					morse_led_blink_on();
+					kfifo_put(&morse_fifo, '-');
+					msleep(DASH_TIME);
+					idx -= 2;
+					continue;
+				}
+				else if (bit) {
+					morse_led_blink_on();
+					kfifo_put(&morse_fifo, '.');
 				} else {
 					morse_led_off();
 				}
-				
 				msleep(DOT_TIME);
 			}
 
 			// turn led off then sleep for 3*dot time or dashtime.
 			morse_led_off();
+			if ( i != (count-1)) {
+				kfifo_put(&morse_fifo, ' ');
+			}
 			msleep(DASH_TIME);
+		}
+
+		// Finished writing
+		if ( i == (count-1) ) {
+			kfifo_put(&morse_fifo, '\\');
+			kfifo_put(&morse_fifo, 'n');
+			break;
 		}
 	}
 
+	printk(KERN_INFO "count: %d\n", (int)count);
 
 	*ppos += count;
 	return count;
@@ -282,6 +316,7 @@ static struct miscdevice morsecode_miscdevice = {
 static int __init morsecode_init(void)
 {
 	int returnValue;
+	INIT_KFIFO(morse_fifo);
 	returnValue = misc_register(&morsecode_miscdevice);
 
 	printk(KERN_INFO "---> Morse code driver init: file /dev/%s\n", MY_DEVICE_FILE);

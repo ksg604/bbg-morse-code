@@ -1,8 +1,8 @@
-cmd_/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.o := /home/brandonubuntu/cmpt433/work/bb-kernel/dl/gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc -Wp,-MD,/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/.morsecode.mod.o.d  -nostdinc -isystem /home/brandonubuntu/cmpt433/work/bb-kernel/dl/gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf/bin/../lib/gcc/arm-linux-gnueabihf/8.3.0/include -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/kconfig.h -include ./include/linux/compiler_types.h -D__KERNEL__ -mlittle-endian -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -fno-PIE -Werror=implicit-function-declaration -Werror=implicit-int -Wno-format-security -std=gnu89 -fno-dwarf2-cfi-asm -fno-ipa-sra -mabi=aapcs-linux -mfpu=vfp -funwind-tables -mthumb -Wa,-mimplicit-it=always -Wa,-mno-warn-deprecated -D__LINUX_ARM_ARCH__=7 -march=armv7-a -msoft-float -Uarm -fno-delete-null-pointer-checks -Wno-frame-address -Wno-format-truncation -Wno-format-overflow -O2 --param=allow-store-data-races=0 -Wframe-larger-than=1024 -fstack-protector-strong -Wno-unused-but-set-variable -Wimplicit-fallthrough -Wno-unused-const-variable -fno-var-tracking-assignments -pg -Wdeclaration-after-statement -Wvla -Wno-pointer-sign -Wno-stringop-truncation -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=date-time -Werror=incompatible-pointer-types -Werror=designated-init -fmacro-prefix-map=./= -Wno-packed-not-aligned  -DKBUILD_BASENAME='"morsecode.mod"' -DKBUILD_MODNAME='"morsecode"' -DMODULE  -c -o /home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.o /home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.c
+cmd_/home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod.o := /home/kevin/cmpt433/work/bb-kernel/dl/gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc -Wp,-MD,/home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/.morsecode.mod.o.d  -nostdinc -isystem /home/kevin/cmpt433/work/bb-kernel/dl/gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf/bin/../lib/gcc/arm-linux-gnueabihf/8.3.0/include -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/kconfig.h -include ./include/linux/compiler_types.h -D__KERNEL__ -mlittle-endian -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -fno-PIE -Werror=implicit-function-declaration -Werror=implicit-int -Wno-format-security -std=gnu89 -fno-dwarf2-cfi-asm -fno-ipa-sra -mabi=aapcs-linux -mfpu=vfp -funwind-tables -mthumb -Wa,-mimplicit-it=always -Wa,-mno-warn-deprecated -D__LINUX_ARM_ARCH__=7 -march=armv7-a -msoft-float -Uarm -fno-delete-null-pointer-checks -Wno-frame-address -Wno-format-truncation -Wno-format-overflow -O2 --param=allow-store-data-races=0 -Wframe-larger-than=1024 -fstack-protector-strong -Wno-unused-but-set-variable -Wimplicit-fallthrough -Wno-unused-const-variable -fno-var-tracking-assignments -pg -Wdeclaration-after-statement -Wvla -Wno-pointer-sign -Wno-stringop-truncation -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=date-time -Werror=incompatible-pointer-types -Werror=designated-init -fmacro-prefix-map=./= -Wno-packed-not-aligned  -DKBUILD_BASENAME='"morsecode.mod"' -DKBUILD_MODNAME='"morsecode"' -DMODULE  -c -o /home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod.o /home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod.c
 
-source_/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.o := /home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.c
+source_/home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod.o := /home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod.c
 
-deps_/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.o := \
+deps_/home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod.o := \
     $(wildcard include/config/module/unload.h) \
     $(wildcard include/config/retpoline.h) \
   include/linux/kconfig.h \
@@ -193,7 +193,7 @@ deps_/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.o :
     $(wildcard include/config/debug/atomic/sleep.h) \
     $(wildcard include/config/arch/has/refcount.h) \
     $(wildcard include/config/panic/timeout.h) \
-  /home/brandonubuntu/cmpt433/work/bb-kernel/dl/gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf/lib/gcc/arm-linux-gnueabihf/8.3.0/include/stdarg.h \
+  /home/kevin/cmpt433/work/bb-kernel/dl/gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf/lib/gcc/arm-linux-gnueabihf/8.3.0/include/stdarg.h \
   include/linux/limits.h \
   include/uapi/linux/limits.h \
   include/linux/linkage.h \
@@ -498,6 +498,6 @@ deps_/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.o :
   include/linux/vermagic.h \
   include/generated/utsrelease.h \
 
-/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.o: $(deps_/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.o)
+/home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod.o: $(deps_/home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod.o)
 
-$(deps_/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod.o):
+$(deps_/home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod.o):

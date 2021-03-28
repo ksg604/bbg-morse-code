@@ -1,1 +1,1 @@
-cmd_/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod := { echo  /home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.o; echo; } > /home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.mod
+cmd_/home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod := { echo  /home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.o; echo; } > /home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.mod

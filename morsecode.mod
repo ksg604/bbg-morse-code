@@ -1,2 +1,2 @@
-/home/brandonubuntu/cmpt433/work/as4/cmpt433-assignment-4/morsecode.o
+/home/kevin/cmpt433/work/assignments/cmpt433-assignment-4/morsecode.o
 
