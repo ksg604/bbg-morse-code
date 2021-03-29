@@ -138,12 +138,18 @@ static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t
 {
 
 	int num_bytes_read = 0;
-
 	/*
-	printk(KERN_INFO "morsecode: In morsecode_read(): buffer size %d, f_pos %d\n",
-		(int) count, (int) *ppos);*/
+	char val;
 
+	// Check if fifo is empty
+	
+	
+	if ( !kfifo_get(&morse_fifo, &val) ) {
+		// If empty, return 0 bytes read
+		return 0;
+	}*/
 
+	// Copy data from fifo to user space
 	if ( kfifo_to_user(&morse_fifo, buff, count, &num_bytes_read) ) {
 		return -EFAULT;
 	}
@@ -156,13 +162,18 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 	int i, idx, codeEndIndex, numBits;
 	unsigned short code, bit, threeBits;
 
-	printk(KERN_INFO "morsecode: In morsecode_write(): ");
-
 	numBits = BITS_PER_BYTE * sizeof(code);
 
 	for (i = 0; i < count; i++) {
 		char ch;
 		code = 0U;
+
+		if ( i == (count-1 ) ) {
+			//Reached end of transmission, add a line feed \n to the end of the queue
+			kfifo_put(&morse_fifo, '\\');
+			kfifo_put(&morse_fifo, 'n');
+			break;
+		}
 
 		if (copy_from_user(&ch, &buff[i], sizeof(ch))) {
 			return -EFAULT;
@@ -170,17 +181,16 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 
 		if (ch == ' ') {
 			// Sleep for space between words
-			kfifo_put(&morse_fifo, ' ');
+			// If the is a word break, add two extra spaces to the queue (for a total of 3) between words
 			kfifo_put(&morse_fifo, ' ');
 			kfifo_put(&morse_fifo, ' ');
 			msleep(WORD_BREAK_TIME);
+			continue;
 		} else if (65 <= ch && ch <= 90) {
 			code = morsecode_codes[ch - 65];
 		} else if (97 <= ch && ch <= 122) {
 			code = morsecode_codes[ch - 97];
 		}
-
-		printk(KERN_INFO "code: %d\n", code);
 
 		// blink if the code is not 0
 		if (code) {
@@ -200,38 +210,32 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 				bit = (code & ( 1 << idx )) >> idx;
 	
 				if (threeBits == 7) {
+					kfifo_put(&morse_fifo, '-');	
 					morse_led_blink_on();
-					kfifo_put(&morse_fifo, '-');
 					msleep(DASH_TIME);
 					idx -= 2;
 					continue;
 				}
 				else if (bit) {
-					morse_led_blink_on();
 					kfifo_put(&morse_fifo, '.');
+					morse_led_blink_on();
 				} else {
 					morse_led_off();
 				}
+
+				
 				msleep(DOT_TIME);
 			}
 
+
 			// turn led off then sleep for 3*dot time or dashtime.
-			morse_led_off();
-			if ( i != (count-1)) {
+			if ( i < (count-2) ) {
 				kfifo_put(&morse_fifo, ' ');
 			}
+			morse_led_off();
 			msleep(DASH_TIME);
 		}
-
-		// Finished writing
-		if ( i == (count-1) ) {
-			kfifo_put(&morse_fifo, '\\');
-			kfifo_put(&morse_fifo, 'n');
-			break;
-		}
 	}
-
-	printk(KERN_INFO "count: %d\n", (int)count);
 
 	*ppos += count;
 	return count;
