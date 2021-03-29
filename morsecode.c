@@ -114,7 +114,7 @@ static void led_unregister(void)
 static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t *ppos) 
 {
 
-	int num_bytes_read = 0;
+	int bytesRead = 0;
 	/*
 	char val;
 
@@ -127,11 +127,11 @@ static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t
 	}*/
 
 	// Copy data from fifo to user space
-	if ( kfifo_to_user(&morse_fifo, buff, count, &num_bytes_read) ) {
+	if ( kfifo_to_user(&morse_fifo, buff, count, &bytesRead) ) {
 		return -EFAULT;
 	}
 	
-	return num_bytes_read;
+	return bytesRead;
 }
 
 static ssize_t morsecode_write(struct file *file, const char *buff, size_t count, loff_t *ppos)
@@ -145,6 +145,7 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 	for (i = 0; i < count; i++) {
 		char letter;
 
+		//Reached end of transmission, add a line feed \n to the end of the queue
 		if ( i == (count-1 ) ) {
 			//Reached end of transmission, add a line feed \n to the end of the queue
 			if(!kfifo_put(&morse_fifo, '\n')) {
@@ -194,6 +195,7 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 				threeBits = (code & (7 << (idx-2))) >> (idx-2);
 				bit = (code & ( 1 << idx )) >> idx;
 	
+				// Dash detected
 				if (threeBits == 7) {
 					if (!kfifo_put(&morse_fifo, '-')) {
 						return -EFAULT;
@@ -216,13 +218,14 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 				msleep(DOT_TIME);
 			}
 
-
-			// turn led off then sleep for 3*dot time or dashtime.
+			// Append space between letters
 			if ( i < (count-2) ) {
 				if (!kfifo_put(&morse_fifo, ' ')) {
 					return -EFAULT;
 				}
 			}
+
+			// turn led off then sleep for 3*dot time or dashtime.
 			morse_led_off();
 			msleep(DASH_TIME);
 		}
