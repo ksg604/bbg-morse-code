@@ -137,7 +137,7 @@ static void led_unregister(void)
 static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t *ppos) 
 {
 
-	int num_bytes_read = 0;
+	int bytesRead = 0;
 	/*
 	char val;
 
@@ -150,17 +150,18 @@ static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t
 	}*/
 
 	// Copy data from fifo to user space
-	if ( kfifo_to_user(&morse_fifo, buff, count, &num_bytes_read) ) {
+	if ( kfifo_to_user(&morse_fifo, buff, count, &bytesRead) ) {
 		return -EFAULT;
 	}
 	
-	return num_bytes_read;
+	return bytesRead;
 }
 
 static ssize_t morsecode_write(struct file *file, const char *buff, size_t count, loff_t *ppos)
 {
 	int i, idx, codeEndIndex, numBits;
 	unsigned short code, bit, threeBits;
+	codeEndIndex = 0;
 
 	numBits = BITS_PER_BYTE * sizeof(code);
 
@@ -168,10 +169,9 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 		char ch;
 		code = 0U;
 
+		//Reached end of transmission, add a line feed \n to the end of the queue
 		if ( i == (count-1 ) ) {
-			//Reached end of transmission, add a line feed \n to the end of the queue
-			kfifo_put(&morse_fifo, '\\');
-			kfifo_put(&morse_fifo, 'n');
+			kfifo_put(&morse_fifo, '\n');
 			break;
 		}
 
@@ -181,7 +181,7 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 
 		if (ch == ' ') {
 			// Sleep for space between words
-			// If the is a word break, add two extra spaces to the queue (for a total of 3) between words
+			// Add two extra spaces to the queue (for a total of 3) between words
 			kfifo_put(&morse_fifo, ' ');
 			kfifo_put(&morse_fifo, ' ');
 			msleep(WORD_BREAK_TIME);
@@ -206,16 +206,19 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 
 			// read the entire bit sequence
 			for (idx = numBits - 1; idx >= codeEndIndex; idx--) {
+
 				threeBits = (code & (7 << (idx-2))) >> (idx-2);
 				bit = (code & ( 1 << idx )) >> idx;
 	
+				// Dash detected
 				if (threeBits == 7) {
 					kfifo_put(&morse_fifo, '-');	
 					morse_led_blink_on();
 					msleep(DASH_TIME);
 					idx -= 2;
 					continue;
-				}
+				} 
+				// Dot detected
 				else if (bit) {
 					kfifo_put(&morse_fifo, '.');
 					morse_led_blink_on();
@@ -227,11 +230,12 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 				msleep(DOT_TIME);
 			}
 
-
-			// turn led off then sleep for 3*dot time or dashtime.
+			// Append space between letters
 			if ( i < (count-2) ) {
 				kfifo_put(&morse_fifo, ' ');
 			}
+
+			// turn led off then sleep for 3*dot time or dashtime.
 			morse_led_off();
 			msleep(DASH_TIME);
 		}
@@ -240,60 +244,6 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 	*ppos += count;
 	return count;
 
-
-	/*int i, code;
-	//char letter;
-	
-
-	//return 0;
-	
-	printk(KERN_INFO "morsecode: Flashing %d times for string.\n", count);
-
-	// instead of this needs to figure out flash character code and flash that out for every character
-	// Blink once per character (-1 to skip end null)
-	for (i = 0; i < count-1; i++) {
-		char ch;
-		
-		code = 0;
-
-		// Get the character from userspace
-		if (copy_from_user(&ch, &buff[i], sizeof(ch))) {
-			return -EFAULT;
-		}
-		printk(KERN_INFO "morsecode: next char is %c \n", ch);
-		// if character is space or alphabetical [a-z   A-Z]
-		if(ch == ' ' || (ch >= 97 && ch <= 122) || (ch >= 65 && ch <= 90)) {
-			if (ch == ' ') {
-				morse_led_off();
-				msleep(WORD_BREAK_TIME);
-			} else if (ch >= 97 && ch <= 122) {
-				code = morsecode_codes[ch - 97];
-			} else if (ch >= 65 && ch <= 90) {
-				code = morsecode_codes[ch - 65];
-			}
-
-			while (code != 0) {
-				printk(KERN_INFO "morsecode: current code is %d \n", code);
-				if ((code & 0xE000) == 0xE000){
-					//kfifo_put(&queue, '-');
-					//countl = 3;
-					printk(KERN_INFO "morsecode: doing a dash:\n");
-					morse_led_blink_dash();
-					code <<= 3;
-				} else if ((code & 0x8000) == 0x8000) {
-					//kfifo_put(&queue, '.');
-					printk(KERN_INFO "morsecode: doing a dot:\n");
-					morse_led_blink_dot();
-					code <<= 1;
-		   		} else {
-					msleep(DOT_TIME);
-				}
-			}
-		}	
-		//my_led_blink();
-		msleep(DASH_TIME);
-	}
-	return count;*/
 }
 
 
