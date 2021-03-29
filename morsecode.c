@@ -21,7 +21,6 @@
 #define DASH_TIME 600
 #define WORD_BREAK_TIME 1400
 
-
 /***************************************
  * FIFO SUPPORT
  **************************************/
@@ -190,6 +189,7 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 			}
 
 			// read the entire bit sequence
+			// 7 is 111
 			for (idx = numBits - 1; idx >= bitIndex; idx--) {
 				threeBits = (code & (7 << (idx-2))) >> (idx-2);
 				bit = (code & ( 1 << idx )) >> idx;
@@ -202,8 +202,7 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 					msleep(DASH_TIME);
 					idx -= 2;
 					continue;
-				}
-				else if (bit) {
+				} else if (bit) {
 					// 1
 					if (!kfifo_put(&morse_fifo, '.')) {
 						return -EFAULT;
