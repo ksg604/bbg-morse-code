@@ -21,7 +21,6 @@
 #define DASH_TIME 600
 #define WORD_BREAK_TIME 1400
 
-
 /***************************************
  * FIFO SUPPORT
  **************************************/
@@ -83,26 +82,6 @@ static unsigned short morsecode_codes[] = {
 };
 
 /***************************************
- * Parameter
- **************************************/
-/*#define DEFAULT_FAV_NUM       42
-static int myfavnumber = DEFAULT_FAV_NUM;
-
-// Declare the variable as a parameter.
-//   S_IRUGO makes it's /sys/module node readable.
-//   # cat /sys/module/demo_paramdrv/parameters/myfavnumber
-// Loading:
-//   # modinfo demo_paramdrv.ko
-//   # insmod demo_paramdrv.ko myfavnumber=932
-module_param(myfavnumber, int, S_IRUGO);
-MODULE_PARM_DESC(myfavnumber, " My favourite number!");
-*/
-
-
-
-//module_param(dot_time, int, S_IRUGO);
-//MODULE_PARM_DESC(dot_time, "dot time for morse code");
-/***************************************
  * LED Trigger
  **************************************/
 DEFINE_LED_TRIGGER(my_trigger);
@@ -132,8 +111,6 @@ static void led_unregister(void)
  * Callback functions
  **************************************/
 
-//static int morsecode_open(struct inode *inode, struct file *file);
-//static int morsecode_close(struct inode *inode, struct file *file);
 static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t *ppos) 
 {
 
@@ -159,80 +136,93 @@ static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t
 
 static ssize_t morsecode_write(struct file *file, const char *buff, size_t count, loff_t *ppos)
 {
-	int i, idx, codeEndIndex, numBits;
+	int i, idx, bitIndex, numBits;
 	unsigned short code, bit, threeBits;
-	codeEndIndex = 0;
 
-	numBits = BITS_PER_BYTE * sizeof(code);
+	numBits = 8 * sizeof(code);
+	bitIndex = 0;
 
 	for (i = 0; i < count; i++) {
-		char ch;
-		code = 0U;
+		char letter;
 
 		//Reached end of transmission, add a line feed \n to the end of the queue
 		if ( i == (count-1 ) ) {
-			kfifo_put(&morse_fifo, '\n');
+			//Reached end of transmission, add a line feed \n to the end of the queue
+			if(!kfifo_put(&morse_fifo, '\n')) {
+				//Fifo full should be unnecessary as we made it 512
+				return -EFAULT;
+			}
 			break;
 		}
 
-		if (copy_from_user(&ch, &buff[i], sizeof(ch))) {
+		if (copy_from_user(&letter, &buff[i], sizeof(letter))) {
 			return -EFAULT;
 		}
 
-		if (ch == ' ') {
-			// Sleep for space between words
-			// Add two extra spaces to the queue (for a total of 3) between words
-			kfifo_put(&morse_fifo, ' ');
-			kfifo_put(&morse_fifo, ' ');
+		code = 0U;
+		if (letter == ' ') {
+			// If the is a word break, add two extra spaces to the queue (for a total of 3) between words
+			if(!kfifo_put(&morse_fifo, ' ')) {
+				return -EFAULT;
+			}
+			if(!kfifo_put(&morse_fifo, ' ')) {
+				return -EFAULT;
+			}
+			//sleep for word break
 			msleep(WORD_BREAK_TIME);
 			continue;
-		} else if (65 <= ch && ch <= 90) {
-			code = morsecode_codes[ch - 65];
-		} else if (97 <= ch && ch <= 122) {
-			code = morsecode_codes[ch - 97];
+			// need to ignore case sensitivity now.
+		} else if (65 <= letter && letter <= 90) { // 65 to 90 are the codes for Capital letters A-Z
+			code = morsecode_codes[letter - 65];
+		} else if (97 <= letter && letter <= 122) { // 97 to 122 are the codes for Small letters a-z
+			code = morsecode_codes[letter - 97];
 		}
 
-		// blink if the code is not 0
+		// blink if the code is not 0 or basically if any character other than the letters and space
 		if (code) {
-			// Find at what index the morse code ends
 			for (idx = 0; idx < numBits; idx++) {
 				bit = (code & ( 1 << idx )) >> idx;
-
+				//index of last bit so next part only grabs correct sequence
 				if (bit) {
-					codeEndIndex = idx;
+					bitIndex = idx;
 					break;
 				}
 			}
 
 			// read the entire bit sequence
-			for (idx = numBits - 1; idx >= codeEndIndex; idx--) {
-
+			// 7 is 111
+			for (idx = numBits - 1; idx >= bitIndex; idx--) {
 				threeBits = (code & (7 << (idx-2))) >> (idx-2);
 				bit = (code & ( 1 << idx )) >> idx;
 	
 				// Dash detected
 				if (threeBits == 7) {
-					kfifo_put(&morse_fifo, '-');	
+					if (!kfifo_put(&morse_fifo, '-')) {
+						return -EFAULT;
+					}	
 					morse_led_blink_on();
 					msleep(DASH_TIME);
 					idx -= 2;
 					continue;
-				} 
-				// Dot detected
-				else if (bit) {
-					kfifo_put(&morse_fifo, '.');
+				} else if (bit) {
+					// 1
+					if (!kfifo_put(&morse_fifo, '.')) {
+						return -EFAULT;
+					}
 					morse_led_blink_on();
 				} else {
+					// 0
 					morse_led_off();
 				}
 
-				
 				msleep(DOT_TIME);
 			}
 
 			// Append space between letters
 			if ( i < (count-2) ) {
-				kfifo_put(&morse_fifo, ' ');
+				if (!kfifo_put(&morse_fifo, ' ')) {
+					return -EFAULT;
+				}
 			}
 
 			// turn led off then sleep for 3*dot time or dashtime.

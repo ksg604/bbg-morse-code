@@ -4,6 +4,10 @@ Instructions:
 3. Flash LEDs (and write to kfifo queue) using command 'echo 'example text here' > sudo tee /dev/morse-code'
 4. Read morsecode contents in kfifo queue using 'sudo cat /dev/morse-code'
 
+LED Video:
+https://drive.google.com/file/d/1vJ4mOiJ46XTOr5RaYmBikfv0-ZJ1YRQt/view?usp=sharing
+https://youtu.be/r8-nduJMvcA
+
 
 debian@kevin-VirtualBox:/mnt/remote/drivers$ uname -r
 5.3.7-ksangabr-bone13
