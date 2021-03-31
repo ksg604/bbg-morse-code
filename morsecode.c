@@ -136,11 +136,13 @@ static ssize_t morsecode_read(struct file *file, char*buff, size_t count, loff_t
 
 static ssize_t morsecode_write(struct file *file, const char *buff, size_t count, loff_t *ppos)
 {
-	int i, idx, bitIndex, numBits;
+	int i, idx, bitIndex, numBits, doubleSpaces;
 	unsigned short code, bit, threeBits;
 
 	numBits = 8 * sizeof(code);
 	bitIndex = 0;
+	// for leading and trailing spaces 1 means a space has just occured so another one right after is skipped.
+	doubleSpaces = 1;
 
 	for (i = 0; i < count; i++) {
 		char letter;
@@ -160,7 +162,7 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 		}
 
 		code = 0U;
-		if (letter == ' ') {
+		if (doubleSpaces == 0 && letter == ' ') {
 			// If the is a word break, add two extra spaces to the queue (for a total of 3) between words
 			if(!kfifo_put(&morse_fifo, ' ')) {
 				return -EFAULT;
@@ -168,13 +170,16 @@ static ssize_t morsecode_write(struct file *file, const char *buff, size_t count
 			if(!kfifo_put(&morse_fifo, ' ')) {
 				return -EFAULT;
 			}
+			doubleSpaces = 1;
 			//sleep for word break
 			msleep(WORD_BREAK_TIME);
 			continue;
 			// need to ignore case sensitivity now.
 		} else if (65 <= letter && letter <= 90) { // 65 to 90 are the codes for Capital letters A-Z
+			doubleSpaces = 0;
 			code = morsecode_codes[letter - 65];
 		} else if (97 <= letter && letter <= 122) { // 97 to 122 are the codes for Small letters a-z
+			doubleSpaces = 0;
 			code = morsecode_codes[letter - 97];
 		}
 
